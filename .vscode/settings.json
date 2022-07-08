@@ -1,0 +1,6 @@
+{
+    "files.associations": {
+        "libbpf.h": "c",
+        "simple.bpf.skel.h": "c"
+    }
+}
