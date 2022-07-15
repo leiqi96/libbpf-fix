@@ -1,5 +1,5 @@
 
-all: pre-build bpf_target skel c_target
+all: pre-build vmlinux.h bpf_target go_target
 
 LIBBPF_CFLAGS = "-fPIC"
 LIBBPF_LDLAGS =
@@ -67,24 +67,24 @@ GO_ENV_BPF += CGO_CFLAGS=$(CUSTOM_CGO_CFLAGS)
 GO_ENV_BPF += CGO_LDFLAGS=$(CUSTOM_CGO_LDFLAGS)
 DEBUG_GO_GCFLAGS := -gcflags=all="-N -l"
 
-# vmlinux.h:
-# 	bpftool btf dump file /sys/kernel/btf/vmlinux format c > vmlinux.h
+patch:
+	cd ./3rdparty/libbpf/ && git am --signoff ../*.patch
 
+unpatch:
+	cd ./3rdparty/libbpf/ && git reset HEAD~1 --hard
 
+vmlinux.h:
+	bpftool btf dump file /sys/kernel/btf/vmlinux format c > vmlinux.h
 
 bpf_target: $(DIST_LIBDIR)/libbpf/libbpf.a simple.bpf.c
 	clang -g  -target bpf -D__TARGET_ARCH_amd64 -I$(DIST_LIBDIR)/libbpf -c simple.bpf.c -o simple.bpf.o
 
-skel:
-	bpftool gen skeleton simple.bpf.o > simple.bpf.skel.h
+go_target: simple.bpf.o main.go
+	$(GO_ENV_BPF) go build $(DEBUG_GO_GCFLAGS) \
+		-v -o libbpfgo-prog main.go
 
-
-c_target: simple.bpf.o main.c
-	clang -v -g  -I$(DIST_LIBDIR)/libbpf -I/usr/include -lelf -lz -o libbpfc-prog main.c $(DIST_LIBDIR)/libbpf/libbpf.a
-	#clang -v -o -g libbpfc-prog main.c -L$(DIST_LIBDIR)/libbpf -lbpf  -lelf
-	#clang -v -g  -I$(DIST_LIBDIR)/libbpf -I/usr/include -lelf -lz -L$(DIST_LIBDIR)/libbpf -L/usr/lib64/ -static -lbpf  -o libbpfc-prog main.c $(DIST_LIBDIR)/libbpf/libbpf.a
 
 clean:
 	rm -r $(BUILD)/*
-	rm simple.bpf.skel.h simple.bpf.o libbpfc-prog 
+	rm simple.bpf.o vmlinux.h libbpf*-prog
 

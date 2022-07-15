@@ -1,0 +1,40 @@
+From c3c18cd21cd7547e4a1e710d4a508245f1f4167a Mon Sep 17 00:00:00 2001
+From: Anquan Wu <leiqi96@hotmail.com>
+Date: Fri, 15 Jul 2022 14:03:07 +0800
+Subject: [PATCH] libbpf: Fix the name of a reused map
+
+Signed-off-by: Anquan Wu <leiqi96@hotmail.com>
+---
+ src/libbpf.c | 9 +++++++--
+ 1 file changed, 7 insertions(+), 2 deletions(-)
+
+diff --git a/src/libbpf.c b/src/libbpf.c
+index 8a45a84..2cb947a 100644
+--- a/src/libbpf.c
++++ b/src/libbpf.c
+@@ -4232,7 +4232,7 @@ int bpf_map__set_autocreate(struct bpf_map *map, bool autocreate)
+ int bpf_map__reuse_fd(struct bpf_map *map, int fd)
+ {
+ 	struct bpf_map_info info = {};
+-	__u32 len = sizeof(info);
++	__u32 len = sizeof(info), name_len;
+ 	int new_fd, err;
+ 	char *new_name;
+ 
+@@ -4242,7 +4242,12 @@ int bpf_map__reuse_fd(struct bpf_map *map, int fd)
+ 	if (err)
+ 		return libbpf_err(err);
+ 
+-	new_name = strdup(info.name);
++	name_len = strlen(info.name);
++	if (name_len == BPF_OBJ_NAME_LEN - 1 && strncmp(map->name, info.name, name_len) == 0)
++		new_name = strdup(map->name);
++	else
++		new_name = strdup(info.name);
++
+ 	if (!new_name)
+ 		return libbpf_err(-errno);
+ 
+-- 
+2.32.0
+
